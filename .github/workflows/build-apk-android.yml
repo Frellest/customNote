@@ -1,0 +1,38 @@
+name: Build VoiceNote APK
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Build APK
+      run: |
+        BUILD_VERSION=$(date +%Y%m%d.%H%M%S)
+        echo "Building version: $BUILD_VERSION"
+        flet build apk --build-version $BUILD_VERSION
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
+      with:
+        name: voicenote-apk
+        path: build/apk/*.apk
+        retention-days: 7
