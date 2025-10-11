@@ -1,48 +1,19 @@
-name: Build VoiceNote APK
+name: Build APK
 
-on:
-  push:
-    branches: [ main ]
-  pull_request:
-    branches: [ main ]
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
     
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Set up Python
-      uses: actions/setup-python@v4
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v4
       with:
         python-version: '3.11'
-        
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install flet
-        
-    - name: Verify Flet installation
-      run: |
-        python -c "import flet; print(f'Flet version: {flet.__version__}')"
-        which flet || echo "flet command not in PATH"
-        python -m flet --version || echo "python -m flet not working"
-        
-    - name: Build APK
-      run: |
-        BUILD_VERSION=$(date +%Y%m%d.%H%M%S)
-        echo "Building APK version: $BUILD_VERSION"
-        python -m flet build apk --build-version $BUILD_VERSION
-        
-    - name: List build files
-      run: |
-        ls -la build/apk/ || echo "No APK files found"
-        
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+    - run: pip install flet
+    - run: python -m flet build apk
+    - uses: actions/upload-artifact@v4
       with:
-        name: voicenote-apk
+        name: app
         path: build/apk/*.apk
-        retention-days: 7
