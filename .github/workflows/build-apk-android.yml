@@ -1,16 +1,37 @@
-name: Build APK
-on: [push]
+name: Build Flet APK
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:  # Позволяет запускать вручную из интерфейса GitHub
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
-    - uses: actions/checkout@v2
-    - uses: actions/setup-python@v2
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v4
       with:
-        python-version: '3.13.7'
-    - run: pip install flet
-    - run: flet build apk
-    - uses: actions/upload-artifact@v2
+        python-version: '3.11'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flet
+        
+    - name: Build APK
+      run: |
+        flet build apk
+        
+    - name: Upload APK
+      uses: actions/upload-artifact@v4
       with:
-        name: app
+        name: app-release
         path: build/apk/*.apk
+        retention-days: 30
