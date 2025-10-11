@@ -22,13 +22,23 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install flet
+        
+    - name: Verify Flet installation
+      run: |
+        python -c "import flet; print(f'Flet version: {flet.__version__}')"
+        which flet || echo "flet command not in PATH"
+        python -m flet --version || echo "python -m flet not working"
         
     - name: Build APK
       run: |
         BUILD_VERSION=$(date +%Y%m%d.%H%M%S)
-        echo "Building version: $BUILD_VERSION"
-        flet build apk --build-version $BUILD_VERSION
+        echo "Building APK version: $BUILD_VERSION"
+        python -m flet build apk --build-version $BUILD_VERSION
+        
+    - name: List build files
+      run: |
+        ls -la build/apk/ || echo "No APK files found"
         
     - name: Upload APK
       uses: actions/upload-artifact@v4
