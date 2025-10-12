@@ -1,0 +1,36 @@
+[project]
+name = "voicenote"
+version = "0.1.0"
+description = "Voice Note App"
+requires-python = ">=3.9"
+dependencies = [
+    "flet == 0.28.3",
+    "flet-permission-handler",
+]
+
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.flet]
+version = "0.1.0"
+description = "Voice Note App"
+org_name = "Frellest"
+app_name = "VoiceNote"
+
+[tool.flet.android]
+package_name = "com.frellest.voicenote"
+min_sdk_version = 21
+target_sdk_version = 33
+
+[tool.flet.android.permissions]
+"android.permission.POST_NOTIFICATIONS" = true
+"android.permission.ACCESS_NOTIFICATION_POLICY" = true
+"android.permission.WAKE_LOCK" = true
+"android.permission.FOREGROUND_SERVICE" = true
+"android.permission.INTERNET" = true
+"android.permission.RECEIVE_BOOT_COMPLETED" = true
+
+[tool.flet.android.background_service]
+notification_title = "Voice Note"
+notification_text = "Служба уведомлений активна"

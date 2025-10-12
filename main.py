@@ -1,10 +1,21 @@
+import os
+import jnius_config
+
+# Настройка для Amazon Corretto
+java_home = r'C:\Program Files\Amazon Corretto\jdk17.0.16_8'
+os.environ['JAVA_HOME'] = java_home
+os.environ['PATH'] = os.path.join(java_home, 'bin') + os.pathsep + os.environ['PATH']
+
+# Настройка JVM
+jvm_path = os.path.join(java_home, 'bin', 'server', 'jvm.dll')
+jnius_config.set_options(f'-Djava.library.path={os.path.dirname(jvm_path)}')
+
 import flet as ft
 import flet_permission_handler as fph
 import sqlite3
 import datetime
 import calendar
 from jnius import autoclass
-import os
 import traceback
 
 
@@ -509,6 +520,7 @@ def main(page:ft.Page):
 
     def check_message_permision():
         permission = ph.check_permission(fph.PermissionType.NOTIFICATION)
+        print(f"permission is {permission}")
         if permission == fph.PermissionStatus.GRANTED:
             print(f"permission is {permission}")
         else:
@@ -516,7 +528,7 @@ def main(page:ft.Page):
 
     def request_message_permission():
         permission = ph.request_permission(fph.PermissionType.NOTIFICATION)
-        print(permission)
+        print(f"permiss: {permission}")
     
     def send_notification(title, text):
         try:
