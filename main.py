@@ -1,8 +1,12 @@
 import flet as ft
-import os
+import flet_permission_handler as fph
 import sqlite3
 import datetime
 import calendar
+import json
+import os
+import time
+
 
 class Date_Time_Menu(ft.BottomSheet):
     def __init__(self, write_func, page, time_pic):
@@ -478,20 +482,7 @@ def delete_task(id):
 
 def main(page:ft.Page):
 
-    def show_notification(e):
-        notification = ft.Notification(
-                title="Успех!",
-                body="Уведомление отправлено",
-                importance=ft.NotificationImportance.DEFAULT
-            )
-        page.publish(notification)
-        page.show_snack_bar(ft.SnackBar(content=ft.Text("Уведомление отправлено!")))
-    
     database_txt()
-
-    global container_task_color
-
-    container_task_color = ft.Colors.GREY_900
 
     sys_theme = page.platform_brightness
     print(sys_theme)
@@ -506,6 +497,11 @@ def main(page:ft.Page):
     page.window.height = 640 # Временное решение, чтобы понимать как приложение выглядит в вертикальном формате
     page.window.width = 360
 
+    ph = fph.PermissionHandler()
+    page.overlay.append(ph)
+
+    
+
     page.fonts = {
         "SFProDisplay-Bold": "assets/fonts/SFProDisplay-Bold.ttf",
         "SFProDisplay-Medium": "assets/fonts/SFProDisplay-Medium.ttf"
@@ -515,6 +511,16 @@ def main(page:ft.Page):
     
     page.scroll = True
 
+    def check_message_permision():
+        permission = ph.check_permission(fph.PermissionType.NOTIFICATION)
+        print(f"permission is {permission}")
+
+    def request_message_permission():
+        pass
+
+    def send_notification(title, text):
+        pass
+    
     def Notes_Column_upd(page, column):
         if page.theme_mode == "dark":
             clr = "white",
@@ -784,6 +790,7 @@ def main(page:ft.Page):
     def open_notifications_menu(e):
         page.overlay.append(create_notifications_menu)
         create_notifications_menu.open = True
+        check_message_permision()
         page.update()
     
     def open_calendar_picker(e):

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "469452814651",
+    "project_id": "voicenoteapp-98758",
+    "storage_bucket": "voicenoteapp-98758.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:469452814651:android:08b498bc33e31464c49f1e",
+        "android_client_info": {
+          "package_name": "com.frellest.voicenote"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD1DQ0b8e6EYglMkh7GfUbcOGQnhCq0biw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
