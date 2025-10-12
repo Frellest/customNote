@@ -3,9 +3,9 @@ import flet_permission_handler as fph
 import sqlite3
 import datetime
 import calendar
-import json
+from jnius import autoclass
 import os
-import time
+import traceback
 
 
 class Date_Time_Menu(ft.BottomSheet):
@@ -500,27 +500,68 @@ def main(page:ft.Page):
     ph = fph.PermissionHandler()
     page.overlay.append(ph)
 
-    
-
     page.fonts = {
         "SFProDisplay-Bold": "assets/fonts/SFProDisplay-Bold.ttf",
         "SFProDisplay-Medium": "assets/fonts/SFProDisplay-Medium.ttf"
     }
-
-    page.bgcolor = ft.Colors.SURFACE
-    
+    page.bgcolor = ft.Colors.SURFACE 
     page.scroll = True
 
     def check_message_permision():
         permission = ph.check_permission(fph.PermissionType.NOTIFICATION)
-        print(f"permission is {permission}")
+        if permission == fph.PermissionStatus.GRANTED:
+            print(f"permission is {permission}")
+        else:
+            request_message_permission()
 
     def request_message_permission():
-        pass
-
-    def send_notification(title, text):
-        pass
+        permission = ph.request_permission(fph.PermissionType.NOTIFICATION)
+        print(permission)
     
+    def send_notification(title, text):
+        try:
+            #получаем главное activity окружения
+            activity_host_class = os.getenv("MAIN_ACTIVITY_HOST_CLASS_NAME")
+            assert activity_host_class
+            activity_host = autoclass(activity_host_class)
+            activity = activity_host.mActivity
+
+            #получаем доступ к android notification manager
+            context = autoclass("android.content.Context")
+            notification_manager = autoclass("android.app.NotificationManager")
+            notification_channel = autoclass("android.app.NotificationChannel")
+            notification_builder = autoclass("android.app.NotificationChannel")
+            notification = autoclass("android.app.Notification$Builder")
+
+            #запускаем уведомления
+            notification_service = activity.getSystemService(context.NOTIFICATION_SERVICE)
+
+            #каналы уведомлений 
+            channel_id = "my_notification_channel"
+            channel_name = "Flet notifi channel"
+            importance = notification_manager.IMPORTANCE_DEFAULT
+
+            channel = notification_channel(channel_id, channel_name, importance)
+            notification_service.createNotificationChannel(channel)
+            
+            #билдим
+            builder = notification_builder(activity, channel_id)
+            builder.setContentTitle(title)
+            builder.setContentText(text)
+            builder.setSmallIcon(activity.getApplicationInfo().icon)
+            builder.setAutoCancel(True)
+
+            #отправляем
+            notification_id = 1
+            notification = builder.build()
+            notification_service.notify(notification_id, notification)
+
+            #проверка работоспособности для пк
+            print("send the message")
+        except Exception as ex:
+            print("error")
+             
+             
     def Notes_Column_upd(page, column):
         if page.theme_mode == "dark":
             clr = "white",
