@@ -1,8 +1,12 @@
-name: Build Flet APK
+name: Build Flet Android APK
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  release:
+    types: [ published ]
 
 jobs:
   build:
@@ -12,28 +16,41 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Flutter
-      uses: subosito/flutter-action@v2
-      with:
-        flutter-version: '3.22.0'  # Новая версия с Dart 3.9+
-        channel: 'stable'
-        
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13.7'
+        python-version: '3.11'
         
-    - name: Install Flet
+    - name: Install dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install flet
+        pip install --upgrade pip
+        pip install flet==0.10.2
+        pip install flet-permission-handler==0.1.0
         
-    - name: Build APK
+    - name: Setup Android SDK
       run: |
-        flet build apk
+        sudo apt-get update
+        sudo apt-get install -y unzip openjdk-11-jdk
+        wget https://dl.google.com/android/repository/commandlinetools-linux-8512546_latest.zip
+        mkdir -p android-sdk/cmdline-tools
+        unzip commandlinetools-linux-8512546_latest.zip -d android-sdk/cmdline-tools
+        mv android-sdk/cmdline-tools/cmdline-tools android-sdk/cmdline-tools/latest
+        export ANDROID_SDK_ROOT=$PWD/android-sdk
+        echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
+        echo "$ANDROID_SDK_ROOT/cmdline-tools/latest/bin" >> $GITHUB_PATH
         
-    - name: Upload APK
+    - name: Accept licenses
+      run: |
+        yes | $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/sdkmanager --licenses
+        
+    - name: Build APK with Flet
+      run: |
+        flet build apk --include-packages flet_permission_handler,jnius --build-version 1
+        ls -la build/apk/
+        
+    - name: Upload APK artifact
       uses: actions/upload-artifact@v4
       with:
-        name: app-release
+        name: mynotes-app-apk
         path: build/apk/*.apk
+        retention-days: 30
