@@ -1,15 +1,4 @@
 import os
-import jnius_config
-
-# Настройка для Amazon Corretto
-java_home = r'C:\Program Files\Amazon Corretto\jdk17.0.16_8'
-os.environ['JAVA_HOME'] = java_home
-os.environ['PATH'] = os.path.join(java_home, 'bin') + os.pathsep + os.environ['PATH']
-
-# Настройка JVM
-jvm_path = os.path.join(java_home, 'bin', 'server', 'jvm.dll')
-jnius_config.set_options(f'-Djava.library.path={os.path.dirname(jvm_path)}')
-
 import flet as ft
 import flet_permission_handler as fph
 import sqlite3
