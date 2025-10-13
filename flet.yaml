@@ -1,0 +1,13 @@
+name: "Custom Notes"
+description: "Custom Notes Application"
+package-name: "com.frellest.customnotes"
+product-name: "Custom Notes"
+version: "1.0.0"
+build-version: 1
+
+includes:
+  - flet_permission_handler
+  - jnius
+
+assets:
+  - assets/
