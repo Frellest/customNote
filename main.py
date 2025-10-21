@@ -1,5 +1,4 @@
 import os
-<<<<<<< HEAD
 import jnius_config
 
 
