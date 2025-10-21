@@ -1,4 +1,3 @@
-
 from jnius import autoclass
 import json
 import time
@@ -49,3 +48,32 @@ class AlarmScheduler:
         except Exception as e:
             print(f"error {e}")
             return False
+        
+class RemainderStorage:
+    #хранилище JSON
+    def __init__(self):
+        self.filename = "remainders.json"
+
+    def save_remainder(self, remainder_data):
+        #сохранение напоминания в файл
+        remainders = self.load_all()
+        remainders.append(remainder_data)
+
+        with open(self.filename, 'w', encoding='utf-8') as f:
+            json.dump(remainders, f, ensure_ascii=False, indent = 2)
+        
+    def load_all(self):
+        #загружаем все в массив
+        try:
+            with open(self.filename, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except: #если файла нету - список пуст
+            return []
+    
+    def delete_remainder(self, remainder_data):
+        remainders = self.load_all()
+
+        remainders = [r for r in remainders if r['id'] != remainder_id]
+
+        with open(self.filename, 'w', encoding='utf-8') as f:
+            json.dump(remainders, f, ensure_ascii=False, indent = 2)
