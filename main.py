@@ -18,6 +18,129 @@ import datetime
 import calendar
 from jnius import autoclass
 import traceback
+import threading
+import time
+import json
+from vosk import Model, KaldiRecognizer
+from libs.android_native import AndroidNotification, AndroidVoiceRecorder
+from libs.android_alarm import RemainderStorage, AlarmScheduler
+
+
+class VoiceAssistant:
+    def __init__(self):
+        # 🏗️ Инициализация компонентов
+        self.notification = AndroidNotification()
+        self.recorder = AndroidVoiceRecorder() 
+        self.alarm_scheduler = AlarmScheduler()
+        self.reminder_storage = RemainderStorage()
+        
+        # 🎯 Счетчик для ID напоминаний
+        self.reminder_id_counter = int(time.time())
+        
+        # 📋 Словарь команд
+        self.commands = {
+            "привет": self.cmd_hello,
+            "тест": self.cmd_test,
+            "уведомление": self.cmd_notification,
+            "напомни": self.cmd_reminder,
+        }
+    
+    # 🎙️ КОМАНДЫ ПОМОЩНИКА
+    
+    def cmd_hello(self, params):
+        """Команда: привет"""
+        return "Привет! Я голосовой помощник. Скажите 'напомни сделать уроки в 17:15'"
+    
+    def cmd_test(self, params):
+        """Команда: тест"""
+        return "✅ Приложение работает! Можно тестировать напоминания."
+    
+    def cmd_notification(self, params):
+        """Команда: уведомление [текст]"""
+        text = " ".join(params) if params else "Тестовое уведомление"
+        self.notification.send_notification("Помощник", text)
+        return f"📨 Уведомление отправлено: {text}"
+    
+    def cmd_reminder(self, params):
+        """Команда: напомни [что] в [время]"""
+        if not params:
+            return "❌ Укажите что напомнить. Например: 'напомни позвонить маме в 18:30'"
+        
+        text = " ".join(params)
+        
+        # ⏰ Парсим время (упрощенно)
+        reminder_time, reminder_text = self.parse_reminder_time(text)
+        if not reminder_time:
+            return "❌ Не понял время. Скажите например: 'напомни сделать уроки в 17:15'"
+        
+        # 🆔 Создаем уникальный ID
+        reminder_id = self.reminder_id_counter
+        self.reminder_id_counter += 1
+        
+        # 💾 Сохраняем напоминание
+        reminder_data = {
+            "id": reminder_id,
+            "text": reminder_text,
+            "timestamp": int(reminder_time.timestamp() * 1000),  # мс
+            "created": time.time()
+        }
+        
+        self.reminder_storage.save_reminder(reminder_data)
+        
+        # ⏰ Планируем в системе
+        success = self.alarm_scheduler.schedule_reminder(
+            reminder_id,
+            reminder_text,
+            reminder_data["timestamp"]
+        )
+        
+        if success:
+            time_str = reminder_time.strftime("%d.%m.%Y в %H:%M")
+            return f"✅ Напоминание: '{reminder_text}' на {time_str}"
+        else:
+            return "❌ Ошибка установки напоминания"
+    
+    def parse_reminder_time(self, text):
+        """Упрощенный парсинг времени из текста"""
+        try:
+            words = text.split()
+            
+            # 🔍 Ищем время в формате ЧЧ:ММ
+            time_str = None
+            for word in words:
+                if ':' in word and len(word) <= 5:
+                    time_str = word
+                    break
+            
+            if not time_str:
+                return None, None
+            
+            # ✂️ Убираем время из текста напоминания
+            reminder_text = text.replace(time_str, '').replace('в', '').strip()
+            
+            # 🕐 Парсим время
+            now = datetime.now()
+            hours, minutes = map(int, time_str.split(':'))
+            
+            reminder_time = datetime(
+                now.year, now.month, now.day,
+                hours, minutes, 0
+            )
+            
+            # 📅 Если время уже прошло - ставим на завтра
+            if reminder_time < now:
+                reminder_time = reminder_time.replace(day=now.day + 1)
+            
+            return reminder_time, reminder_text
+            
+        except Exception as e:
+            print(f"❌ Ошибка парсинга времени: {e}")
+            return None, None
+    
+    def recognize_speech(self, audio_data):
+        """Заглушка для распознавания речи"""
+        # 🔄 Здесь будет Vosk распознавание
+        return "тест уведомление"  # 📝 Заглушка для теста
 
 class Date(ft.BottomSheet):
     def __init__(self, write_func, page, change_auto_do):
@@ -452,7 +575,8 @@ def database_txt():
     date TEXT DEFAULT None,
     time TEXT DEFAULT None,
     created TEXT NOT NULL,
-    date_do TEXT DEFAULT None
+    date_do TEXT DEFAULT None,
+    repeat TEXT DEFAULT None
     )
     ''')
 
@@ -606,6 +730,22 @@ def delete_date_and_time(id):
     # Сохраняем изменения и закрываем соединение
     connection.commit()
     connection.close()
+def set_repeat_status(id, status):
+    connection = sqlite3.connect('TaskFiles.db')
+    cursor = connection.cursor()
+    
+    cursor.execute(f'UPDATE Task SET repeat = ? WHERE id = ?', (status, id))
+
+    connection.commit()
+    connection.close()
+def delete_repeat_status(id):
+    connection = sqlite3.connect('TaskFiles.db')
+    cursor = connection.cursor()
+
+    cursor.execute(f'UPDATE Task SET repeat = ? WHERE id = ?', (None, id))
+
+    connection.commit()
+    connection.close()
 
 def get_info(id):
     connection = sqlite3.connect('txtFiles.db')
@@ -708,6 +848,13 @@ def main(page:ft.Page):
     
     page.window.height = 640 # Временное решение, чтобы понимать как приложение выглядит в вертикальном формате
     page.window.width = 360
+
+
+    repeat_values = {
+        "DAILY": ft.Text(value="Ежедневно", font_family="SFProDisplay-Bold", size=14, color= ft.Colors.ORANGE),
+        "EVERY_WEEK": ft.Text(value="Через неделю", font_family="SFProDisplay-Bold", size=14, color= ft.Colors.ORANGE)
+    }
+
 
     ph = fph.PermissionHandler()
     page.overlay.append(ph)
@@ -1019,12 +1166,13 @@ def main(page:ft.Page):
     def open_date_do_it_picker(e):
         do_it_date_picker.show()
         page.update()
-    
+
     def close_all_menu(e= None):
-        if date_picker.open: date_picker.open = False
-        if create_notifications_menu.open: create_notifications_menu.open = False
-        if do_it_date_picker.open: do_it_date_picker.open = False
-        if create_do_it_menu.open: create_do_it_menu.open = False
+        date_picker.open = False
+        create_notifications_menu.open = False
+        do_it_date_picker.open = False
+        create_do_it_menu.open = False
+        create_repeat.open = False
         print("all menu are close")
         page.update()
     
@@ -1040,7 +1188,6 @@ def main(page:ft.Page):
         set_task_settings(None, id)
         close_all_menu()
 
-    
     create_task_menu = ft.BottomSheet(
         content= ft.Container(
                     content=ft.Column(
@@ -1085,7 +1232,43 @@ def main(page:ft.Page):
         )
     date_picker = Date_Time_Menu(update_date, page, time_pic=time_picker)
     do_it_date_picker = Date(set_auto_do, page, change_auto_do)
+    create_repeat = ft.BottomSheet(
+        content= ft.Container(
+                    content=ft.Column(
+                        controls=
+                        [
+                            ft.Text("Повтор", font_family="SFProDisplay-Bold"),
+                            ft.Container(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(ft.Icons.TODAY),
+                                        ft.Text("Ежедневно", font_family="SFProDisplay-Bold")
+                                    ]
+                                ),
+                                on_click= lambda e, status= "DAILY" :set_new_repeat_status(e, status=status),
+                            ),
+                            ft.Container(
+                                content=ft.Row(
+                                    controls=[
+                                        ft.Icon(ft.Icons.VIEW_WEEK),
+                                        ft.Text("Еженедельно", font_family="SFProDisplay-Bold")
+                                    ]
+                                ),
+                                on_click= lambda e, status= "EVERY_WEEK" :set_new_repeat_status(e, status=status)
+                            )
 
+                        ], alignment=ft.MainAxisAlignment.CENTER,spacing=20
+                    ),
+                height = 150,
+                alignment= ft.alignment.center,
+                margin=ft.margin.symmetric(horizontal=20),
+                data=1
+        ),
+        use_safe_area=True,
+        shape=ft.RoundedRectangleBorder(10),
+        open=False,
+        maintain_bottom_view_insets_padding = True
+    )
 
     create_notifications_menu = ft.BottomSheet(
         on_dismiss=close_all_menu,
@@ -1194,6 +1377,17 @@ def main(page:ft.Page):
         delete_note(id)
         menu_delete_note_dismiss(e)
     
+    def open_create_repeat(e):
+        if create_repeat.open == False : create_repeat.open = True
+        page.update()
+
+    def set_new_repeat_status(e, status):
+        id = create_repeat.data
+        print(id, status)
+        set_repeat_status(id, status=status)
+        set_task_settings(None, id)
+        close_all_menu()
+    
     def delete_do_it_value(e, id):
         delete_auto_do(id)
         set_task_settings(None, idd=id)
@@ -1203,7 +1397,20 @@ def main(page:ft.Page):
         Notes_Column_upd(page, notes_column)
         page.update()
     
+    def delete_repeat(e):
+        id = delete_repeat_button.data
+        delete_repeat_status(id)
+        set_task_settings(None, id)
+        close_all_menu()
+
     delete_button_note = ft.TextButton(text= "Удалить", scale=1.5, style=ft.ButtonStyle(color=ft.Colors.RED), data=1, on_click=delete_note_button_do)
+
+    delete_repeat_button = ft.Container(
+                                        content=ft.Icon(ft.Icons.CANCEL_OUTLINED, color=ft.Colors.GREY, size=18),
+                                        margin=ft.margin.only(right= 5),
+                                        on_click=delete_repeat
+                                        #UI
+                            )
 
     menu_bar = ft.BottomSheet(
         content= ft.Container(
@@ -1223,7 +1430,7 @@ def main(page:ft.Page):
         maintain_bottom_view_insets_padding = True
     )
 
-    page.overlay.extend([create_task_menu, time_picker, date_picker, do_it_date_picker, create_notifications_menu, create_do_it_menu, menu_bar])
+    page.overlay.extend([create_task_menu, time_picker, date_picker, do_it_date_picker, create_notifications_menu, create_do_it_menu, menu_bar, create_repeat])
 
     print(notes_column)
     Notes_Column_upd(page, notes_column)
@@ -1275,7 +1482,18 @@ def main(page:ft.Page):
                         margin=ft.margin.symmetric(horizontal=5),
                         on_click=open_do_it_menu
                     )
-    
+    repeat_task_container_default = ft.Container(
+                        content=ft.Row(
+                                    controls=[
+                                        ft.Icon(ft.Icons.RECYCLING_OUTLINED, size=20, color=ft.Colors.GREY),
+                                        ft.Text(font_family="SFProDisplay-Bold", size=14, value="Повтор", color=ft.Colors.GREY)
+                                    ], spacing=20
+                        ),
+                        height=page.height/14,
+                        margin=ft.margin.symmetric(horizontal=5),
+                        on_click=open_create_repeat
+                    )
+
     def delete_task_user(e, id):
         delete_task(id)
         print("i can")
@@ -1335,6 +1553,8 @@ def main(page:ft.Page):
         
         date_picker.data = id
         do_it_date_picker.data = id
+        create_repeat.data = id
+        delete_repeat_button.data = id
 
         time = all_info[5]
         date_picker.user_time = str(time[:5]) if time is not None else "22:00"
@@ -1349,6 +1569,7 @@ def main(page:ft.Page):
         date = all_info[4]
         date_create = all_info[6]
         date_do_it = all_info[7]
+        repeat_status = all_info[8]
 
         day = get_weekday_simple(date_create)
         month = get_month(date_create)
@@ -1416,6 +1637,29 @@ def main(page:ft.Page):
         if (date is not None and str(date) != "None" and time is not None and str(time) != "None"):
             
             if date_do_it is None or date_do_it == "None": date_do_container = date_do_container_default
+            if repeat_status is not None and repeat_status != "None": 
+                repeat_task_container = ft.Container(
+                        content=ft.Row(
+                                    controls=[
+                                        ft.Row(
+                                            controls=[
+                                                ft.Icon(ft.Icons.RECYCLING_OUTLINED, size=20, color=ft.Colors.ORANGE),
+                                                ft.Column(
+                                                    controls= 
+                                                    [
+                                                        ft.Text(font_family="SFProDisplay-Bold", size=14, value="Повтор: ", color=ft.Colors.ORANGE),
+                                                        repeat_values[repeat_status]
+                                                    ], spacing=1
+                                                )
+                                            ], spacing=20
+                                        ),
+                                        delete_repeat_button
+                                    ], spacing=20, alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        ),
+                        height=page.height/14,
+                        margin=ft.margin.symmetric(horizontal=5)
+                    )
+            else: repeat_task_container = repeat_task_container_default
 
             day = get_weekday_simple(str(date))
             times = time[0:5]
@@ -1451,22 +1695,34 @@ def main(page:ft.Page):
                         alignment=ft.alignment.center
                     ),
                     date_do_container,
-                    ft.Container(
-                        content=ft.Row(
-                                    controls=[
-                                        ft.Icon(ft.Icons.RECYCLING_OUTLINED, size=20, color=ft.Colors.GREY),
-                                        ft.Text(font_family="SFProDisplay-Bold", size=14, value="Повтор", color=ft.Colors.GREY)
-                                    ], spacing=20
-                        ),
-                        height=page.height/14,
-                        margin=ft.margin.symmetric(horizontal=5)
-                    ),
+                    repeat_task_container
                 ], spacing=0
             )
         else:
-            
             if date_do_it is None or date_do_it == "None": date_do_container = date_do_container_default
-
+            if repeat_status is not None and repeat_status != "None": 
+                repeat_task_container = ft.Container(
+                        content=ft.Row(
+                                    controls=[
+                                        ft.Row(
+                                            controls=[
+                                                ft.Icon(ft.Icons.RECYCLING_OUTLINED, size=20, color=ft.Colors.ORANGE),
+                                                ft.Column(
+                                                    controls= 
+                                                    [
+                                                        ft.Text(font_family="SFProDisplay-Bold", size=14, value="Повтор: ", color=ft.Colors.ORANGE),
+                                                        repeat_values[repeat_status]
+                                                    ], spacing=1
+                                                )
+                                            ], spacing=20
+                                        ),
+                                        delete_repeat_button
+                                    ], spacing=20, alignment=ft.MainAxisAlignment.SPACE_BETWEEN
+                        ),
+                        height=page.height/14,
+                        margin=ft.margin.symmetric(horizontal=5)
+                    )
+            else: repeat_task_container = repeat_task_container_default
             interface_under_text_in_task_settingss = ft.Column(
                 controls=
                 [
@@ -1483,16 +1739,7 @@ def main(page:ft.Page):
                         on_click=lambda e: open_notifications_menu(e)
                     ),
                     date_do_container,
-                    ft.Container(
-                        content=ft.Row(
-                                    controls=[
-                                        ft.Icon(ft.Icons.RECYCLING_OUTLINED, size=20, color=ft.Colors.GREY),
-                                        ft.Text(font_family="SFProDisplay-Bold", size=14, value="Повтор", color=ft.Colors.GREY)
-                                    ], spacing=20
-                        ),
-                        height=page.height/14,
-                        margin=ft.margin.symmetric(horizontal=5)
-                    ),
+                    repeat_task_container
                 ], spacing=0
             )
             print(date)
@@ -1587,6 +1834,7 @@ def main(page:ft.Page):
             )
         )
     }
+
 
     change_bottom_bar("main_notes")
     change_app_bar("main_notes")
