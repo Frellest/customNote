@@ -21,7 +21,7 @@ import traceback
 import threading
 import time
 import json
-from vosk import Model, KaldiRecognizer
+#from vosk import Model, KaldiRecognizer
 from libs.android_native import AndroidNotification, AndroidVoiceRecorder
 from libs.android_alarm import RemainderStorage, AlarmScheduler
 
