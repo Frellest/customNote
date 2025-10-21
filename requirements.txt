@@ -1,2 +1,2 @@
-flet==0.10.2
-flet-permission-handler==0.1.0
+flet>=0.10.0
+flet-permission-handler

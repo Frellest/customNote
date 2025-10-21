@@ -1,39 +1,47 @@
-name: Build Flet APK
+name: Build Android APK
 
-on:
-  push:
-    branches: [ main ]
+on: [push]
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
+    - uses: actions/checkout@v4
+    
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.22.0'  # Новая версия с Dart 3.9+
-        channel: 'stable'
+        flutter-version: '3.25.0'  # Эта версия точно имеет Dart 3.9+
+        
+    - name: Setup Java
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '11'
         
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.13.7'
+        python-version: '3.11'
         
-    - name: Install Flet
+    - name: Install Python dependencies
       run: |
-        python -m pip install --upgrade pip
-        pip install flet
+        pip install flet==0.10.2 flet-permission-handler==0.1.0
+        
+    - name: Verify Flutter version
+      run: |
+        flutter --version
+        dart --version
+        
+    - name: Accept Android licenses
+      run: |
+        yes | sdkmanager --licenses
         
     - name: Build APK
       run: |
-        flet build apk
+        flet build apk --verbose
         
-    - name: Upload APK
-      uses: actions/upload-artifact@v4
+    - uses: actions/upload-artifact@v4
       with:
-        name: app-release
+        name: custom-notes-apk
         path: build/apk/*.apk
