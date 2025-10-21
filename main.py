@@ -12,8 +12,6 @@ os.environ['PATH'] = os.path.join(java_home, 'bin') + os.pathsep + os.environ['P
 jvm_path = os.path.join(java_home, 'bin', 'server', 'jvm.dll')
 jnius_config.set_options(f'-Djava.library.path={os.path.dirname(jvm_path)}')
 
-=======
->>>>>>> 86f15838966354664e81b615283a4e4f3b567879
 import flet as ft
 import flet_permission_handler as fph
 import sqlite3
